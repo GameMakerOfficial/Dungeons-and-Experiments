@@ -2,7 +2,7 @@
 let player = {
     nickname: "",
     password: "",
-    rank: "PLAYER", // Może być: OWNER, VIP, FP, SNIPER
+    rank: "PLAYER",
     weapon: "None",
     dungeonLevel: 1,
     inventory: {
@@ -15,23 +15,49 @@ let player = {
     }
 };
 
+// --- SYSTEM MODALI (WYSKAKUJĄCYCH OKIEN) ---
+function showModal(title, text, buttons) {
+    document.getElementById("modal-title").innerText = title;
+    document.getElementById("modal-desc").innerText = text;
+    
+    let btnContainer = document.getElementById("modal-buttons");
+    btnContainer.innerHTML = "";
+
+    buttons.forEach(btn => {
+        let newBtn = document.createElement("button");
+        newBtn.className = "btn";
+        newBtn.innerText = btn.text;
+        if(btn.color) newBtn.style.background = btn.color;
+        
+        newBtn.onclick = () => {
+            closeModal();
+            if(btn.action) btn.action();
+        };
+        btnContainer.appendChild(newBtn);
+    });
+
+    document.getElementById("custom-modal").style.display = "flex";
+}
+
+function closeModal() {
+    document.getElementById("custom-modal").style.display = "none";
+}
+
 // --- REJESTRACJA KONTA ---
 function handleRegister() {
     const nickInput = document.getElementById('nickname-input').value.trim();
     const passInput = document.getElementById('password-input').value.trim();
 
     if (nickInput === "" || passInput === "") {
-        alert("Enter both Nickname and Password!");
+        showModal("BŁĄD", "Wpisz zarówno Nick jak i Hasło!", [{text: "OK", color: "#f44336"}]);
         return;
     }
 
-    // Sprawdzanie czy konto już istnieje
     if (localStorage.getItem("user_" + nickInput)) {
-        alert("Account with this nickname already exists! Click LOGIN.");
+        showModal("BŁĄD", "Konto o tym nicku już istnieje! Kliknij LOGIN.", [{text: "OK", color: "#f44336"}]);
         return;
     }
 
-    // Tworzenie nowego konta
     let newPlayer = {
         nickname: nickInput,
         password: passInput,
@@ -41,15 +67,13 @@ function handleRegister() {
         inventory: { plank: 0, stone: 0, meat: 0, metal: 0, diamond: 0, mythril: 0 }
     };
 
-    // Bonus dla Właściciela (OWNER)
     if (nickInput === "GameMaker_Official") {
         newPlayer.inventory.plank += 10;
         newPlayer.inventory.mythril += 1;
     }
 
-    // Zapis konta w przeglądarce
     localStorage.setItem("user_" + nickInput, JSON.stringify(newPlayer));
-    alert("Account created successfully! Now click LOGIN.");
+    showModal("SUKCES!", "Konto utworzone pomyślnie!\nTeraz kliknij LOGIN.", [{text: "SUPER", color: "#4CAF50"}]);
 }
 
 // --- LOGOWANIE DO KONTA ---
@@ -57,31 +81,23 @@ function handleLogin() {
     const nickInput = document.getElementById('nickname-input').value.trim();
     const passInput = document.getElementById('password-input').value.trim();
 
-    if (nickInput === "" || passInput === "") {
-        alert("Enter both Nickname and Password!");
-        return;
-    }
-
     const savedData = localStorage.getItem("user_" + nickInput);
 
     if (!savedData) {
-        alert("Account not found. Click REGISTER first!");
+        showModal("BŁĄD", "Nie znaleziono konta.\nKliknij REGISTER!", [{text: "OK", color: "#f44336"}]);
         return;
     }
 
     let userData = JSON.parse(savedData);
 
-    // Weryfikacja hasła
     if (userData.password !== passInput) {
-        alert("Incorrect password!");
+        showModal("BŁĄD", "Błędne hasło!", [{text: "OK", color: "#f44336"}]);
         return;
     }
 
-    // Pomyślne logowanie
     player = userData;
     updateUI();
 
-    // Ukrycie ekranu startowego i pokazanie gry
     document.getElementById('start-screen').style.display = "none";
     document.getElementById('top-bar').style.display = "flex";
     document.getElementById('bottom-nav').style.display = "flex";
@@ -89,14 +105,12 @@ function handleLogin() {
     document.getElementById('zone-dungeon').style.display = "flex";
 }
 
-// --- ZAPISYWANIE POSTĘPU GRACZA ---
 function saveProgress() {
     if (player.nickname) {
         localStorage.setItem("user_" + player.nickname, JSON.stringify(player));
     }
 }
 
-// --- ODŚWIEŻANIE INTERFEJSU (UI) ---
 function updateUI() {
     document.getElementById('ui-nick').innerText = player.nickname;
     document.getElementById('ui-rank').innerText = "[" + player.rank + "]";
@@ -111,48 +125,64 @@ function updateUI() {
 // --- OTWIERANIE LABORATORIUM ---
 function openLab() {
     if (player.weapon === "None") {
-        let craft = confirm("Laboratory! Free first experiment: Craft Stone Sword?");
-        if (craft) {
-            player.weapon = "Stone Sword";
-            alert("Success! You created Stone Sword. Now you can enter Dungeon!");
-            saveProgress();
-            updateUI();
-        }
+        showModal("LABORATORY", "Witaj na pierwszej wizycie!\nTwój pierwszy eksperyment to stworzenie broni.\nKoszt: ZA DARMO\nSzansa: 100%", [
+            { text: "CRAFT (100%)", color: "#4CAF50", action: () => {
+                player.weapon = "Stone Sword";
+                saveProgress();
+                updateUI();
+                setTimeout(() => showModal("SUKCES!", "Stworzyłeś Stone Sword!\nDroga do Lochów stoi otworem.", [{text: "ZAMKNIJ", color: "#2196F3"}]), 150);
+            }},
+            { text: "ANULUJ", color: "#777" }
+        ]);
     } else {
-        alert("Welcome to Laboratory! Experiment crafting system coming soon.");
+        let costPlank = 2;
+        let costStone = 2;
+        
+        showModal("LABORATORY", `Kolejny eksperyment.\nKoszt: ${costPlank}x Plank, ${costStone}x Stone.\nSzansa powodzenia: 80%`, [
+            { text: "SPRÓBUJ", color: "#FF9800", action: () => {
+                if (player.inventory.plank >= costPlank && player.inventory.stone >= costStone) {
+                    player.inventory.plank -= costPlank;
+                    player.inventory.stone -= costStone;
+                    updateUI();
+                    
+                    let roll = Math.random() * 100;
+                    if (roll <= 80) {
+                        setTimeout(() => showModal("SUKCES!", "Eksperyment udany!", [{text: "EKSTRA", color: "#4CAF50"}]), 150);
+                    } else {
+                        setTimeout(() => showModal("PORAŻKA!", "BUM! Eksperyment wybuchł.\nStraciłeś użyte surowce.", [{text: "TRUDNO", color: "#f44336"}]), 150);
+                    }
+                    saveProgress();
+                } else {
+                    setTimeout(() => showModal("BRAK SUROWCÓW", `Potrzebujesz:\n${costPlank}x Plank\n${costStone}x Stone`, [{text: "OK", color: "#f44336"}]), 150);
+                }
+            }},
+            { text: "WYJDŹ", color: "#777" }
+        ]);
     }
 }
 
-// --- WCHODZENIE DO LOCHU (SZANSE I SPADEK O 8.39%) ---
+// --- WCHODZENIE DO LOCHU ---
 function enterDungeon() {
     if (player.weapon === "None") {
-        alert("You need a weapon! Go to Laboratory to get your Stone Sword.");
+        showModal("BŁĄD", "Jesteś bezbronny!\nWejdź do Laboratorium by odebrać darmowy miecz.", [{text: "OK", color: "#f44336"}]);
         return;
     }
 
     let level = player.dungeonLevel;
-    
-    // Obliczanie szansy na wygraną (spadek o 8.39% co poziom)
     let winChance = 100 - ((level - 1) * 8.39);
     
-    // Ranga OWNER daje +20% szans
     if (player.rank === "OWNER") winChance += 20;
-    
     if (winChance < 0) winChance = 0;
 
     let roll = (Math.random() * 100).toFixed(2);
-    
-    let message = `Entering Dungeon Lv.${level}!\n`;
-    message += `Win Chance: ${winChance.toFixed(2)}%\n`;
-    message += `Rolled: ${roll}\n\n`;
+    let isWin = parseFloat(roll) <= winChance;
 
-    if (roll <= winChance) {
-        message += "🎉 VICTORY!\n";
-        
-        // Modyfikator dla właściciela
+    let title = isWin ? "🎉 ZWYCIĘSTWO!" : "💀 PORAŻKA!";
+    let message = `Loch: Poziom ${level}\nTwoja szansa: ${winChance.toFixed(2)}%\nWylosowano: ${roll}\n\n`;
+
+    if (isWin) {
         let dropMod = player.rank === "OWNER" ? 2.0 : 1.0; 
 
-        // Losowanie lootów (Deska 20%, Kamień 30%)
         if (Math.random() * 100 <= (20 * dropMod)) {
             player.inventory.plank += 1;
             message += "+1 Plank 🪵\n";
@@ -162,17 +192,24 @@ function enterDungeon() {
             message += "+1 Stone 🪨\n";
         }
         
-        // Drop mięsa (1-3 sztuki)
         let meatDrop = Math.floor(Math.random() * 3) + 1;
         player.inventory.meat += meatDrop;
         message += `+${meatDrop} Meat 🍖\n`;
 
-        player.dungeonLevel++; // Odblokowanie kolejnego poziomu
+        player.dungeonLevel++; 
     } else {
-        message += "💀 DEFEAT! Win chance was too low.";
+        message += "Zostałeś pokonany.";
     }
 
+    showModal(title, message, [{text: "KONTYNUUJ", color: isWin ? "#4CAF50" : "#f44336"}]);
     saveProgress();
-    alert(message);
     updateUI();
+}
+
+// --- ZASTĄPIENIE ALERTÓW W DOLNYM MENU ---
+function showInventoryMsg() {
+    showModal("EKWIPUNEK", "Panel Ekwipunku jest w trakcie budowy.", [{text: "ZAMKNIJ", color: "#777"}]);
+}
+function showQuestsMsg() {
+    showModal("MISJE", "Lista zadań i nagród będzie wkrótce dostępna.", [{text: "ZAMKNIJ", color: "#777"}]);
 }
