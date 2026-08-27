@@ -1,3 +1,18 @@
+// --- NAPRAWA WYSOKOŚCI PELNEGO EKRANU NA MOBILE ---
+function setScreenHeight() {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+window.addEventListener('resize', setScreenHeight);
+setScreenHeight();
+
+// --- AUTOMATYCZNE SCHOWANIE PASKA PRZEGLĄDARKI PO ZAŁADOWANIU ---
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        window.scrollTo(0, 1);
+    }, 100);
+});
+
 // --- KONFIGURACJA FIREBASE ---
 const firebaseConfig = {
     apiKey: "AIzaSyDbVxlkWCzXBmsnQ5uvFpuW91Xevf2ZR54",
@@ -139,9 +154,9 @@ const firebaseConfig = {
           closeModal();
           document.getElementById('start-screen').style.display = "none";
           document.getElementById('top-bar').style.display = "flex";
-          document.getElementById('bottom-nav').style.display = "flex";
           document.getElementById('zone-lab').style.display = "flex";
           document.getElementById('zone-dungeon').style.display = "flex";
+          document.getElementById('game-nav-bar').style.display = "flex";
       } catch (e) {
           showModal("BŁĄD FIREBASE", "Problem z połączeniem z bazą danych.", [{text: "OK", color: "#f44336"}]);
       }
@@ -151,8 +166,7 @@ const firebaseConfig = {
   async function saveProgress() {
       if (player.nickname) {
           try {
-              // Zapisujemy pełny stan gracza, zachowując inbox
-              await db.collection("users").doc(player.nickname).set(player, {merge: true});
+              await db.collection("users").doc(player.nickname).set(player, {merge:true});
           } catch (e) { console.error("Błąd zapisu:", e); }
       }
   }
@@ -171,6 +185,13 @@ const firebaseConfig = {
       document.getElementById('res-mythril').innerText = player.inventory.mythril;
   }
   
+  // --- EQ / EKWIPUNEK ---
+  function openInventory() {
+      showModal("🎒 EKWIPUNEK", `Posiadana broń: ${player.weapon}\nPoziom lochu: ${player.dungeonLevel}`, [
+          { text: "ZAMKNIJ", color: "#777" }
+      ]);
+  }
+
   // --- WYŚWIETLANIE TOP 100 GRACZY ---
   async function showLeaderboard() {
       showModal("ŁADOWANIE...", "Pobieranie rankingu graczy...", []);
@@ -250,12 +271,10 @@ const firebaseConfig = {
       if (gift.type === "resource") player.inventory[gift.resType] += gift.resAmount;
 
       try {
-          // Usunięcie prezentu z bazy w chmurze
           await db.collection("users").doc(player.nickname).update({
               inbox: firebase.firestore.FieldValue.arrayRemove(gift)
           });
           
-          // Aktualizujemy lokalny inbox
           player.inbox = player.inbox.filter(g => g.id !== gift.id);
 
           updateUI();
@@ -353,7 +372,7 @@ const firebaseConfig = {
               card.appendChild(btn); container.appendChild(card);
           });
           showModal("WYBIERZ EKSPERYMENT", container, [{ text: "WYJDŹ", color: "#777" }]);
-      }
+          }
   }
   
   function startCrafting(recipe) {
@@ -398,6 +417,3 @@ const firebaseConfig = {
           saveProgress(); updateUI();
       });
   }
-  
-  function showInventoryMsg() { showModal("EKWIPUNEK", "Panel Ekwipunku jest w trakcie budowy.", [{text: "ZAMKNIJ", color: "#777"}]); }
-              
