@@ -20,7 +20,7 @@ const firebaseConfig = {
       weapon: "None",
       dungeonLevel: 1,
       inventory: { plank: 0, stone: 0, meat: 0, metal: 0, diamond: 0, mythril: 0 },
-      inbox: [] // Nowe pole dla skrzynki odbiorczej
+      inbox: []
   };
   
   let activeTimer = null;
@@ -147,13 +147,12 @@ const firebaseConfig = {
       }
   }
   
-  // --- ZAPIS POSTĘPU (Zabezpieczony przed usuwaniem Inboxa) ---
+  // --- ZAPIS POSTĘPU ---
   async function saveProgress() {
       if (player.nickname) {
           try {
-              let dataToSave = { ...player };
-              delete dataToSave.inbox; // Inbox aktualizujemy tylko poprzez odbieranie prezentów!
-              await db.collection("users").doc(player.nickname).set(dataToSave, {merge: true});
+              // Zapisujemy pełny stan gracza, zachowując inbox
+              await db.collection("users").doc(player.nickname).set(player, {merge: true});
           } catch (e) { console.error("Błąd zapisu:", e); }
       }
   }
@@ -178,7 +177,7 @@ const firebaseConfig = {
       try {
           const querySnapshot = await db.collection("users")
               .orderBy("dungeonLevel", "desc")
-              .limit(100) // Zmienione na TOP 100
+              .limit(100)
               .get();
   
           let container = document.createElement("div");
@@ -214,14 +213,16 @@ const firebaseConfig = {
       showModal("ŁADOWANIE...", "Sprawdzanie skrytki...", []);
       try {
           const docSnap = await db.collection("users").doc(player.nickname).get();
-          let currentInbox = docSnap.exists ? (docSnap.data().inbox || []) : [];
+          if (docSnap.exists) {
+              player.inbox = docSnap.data().inbox || [];
+          }
 
-          if (currentInbox.length === 0) {
+          if (player.inbox.length === 0) {
               return showModal("📬 INBOX", "Twoja skrzynka jest pusta.", [{ text: "WRÓĆ", color: "#777", action: openSocial }]);
           }
 
           let container = document.createElement("div");
-          currentInbox.forEach(gift => {
+          player.inbox.forEach(gift => {
               let row = document.createElement("div");
               row.className = "inbox-item";
               let desc = gift.type === "rank" ? `Nowa ranga: [${gift.rankName}]` : `+${gift.resAmount} ${gift.resType}`;
@@ -249,9 +250,14 @@ const firebaseConfig = {
       if (gift.type === "resource") player.inventory[gift.resType] += gift.resAmount;
 
       try {
+          // Usunięcie prezentu z bazy w chmurze
           await db.collection("users").doc(player.nickname).update({
               inbox: firebase.firestore.FieldValue.arrayRemove(gift)
           });
+          
+          // Aktualizujemy lokalny inbox
+          player.inbox = player.inbox.filter(g => g.id !== gift.id);
+
           updateUI();
           saveProgress();
           showModal("SUKCES!", "Prezent odebrany pomyślnie!", [{ text: "OK", color: "#4CAF50", action: openInbox }]);
@@ -314,7 +320,7 @@ const firebaseConfig = {
       }
   }
   
-  // --- LABORATORIUM I LOCHY (BEZ ZMIAN) ---
+  // --- LABORATORIUM ---
   function openLab() {
       if (player.weapon === "None") {
           showModal("LABORATORY", "Witaj na pierwszej wizycie!\nTwój pierwszy eksperyment to stworzenie broni.\nKoszt: ZA DARMO\nSzansa: 100%", [
@@ -364,6 +370,7 @@ const firebaseConfig = {
       });
   }
   
+  // --- LOCHY ---
   function enterDungeon() {
       if (player.weapon === "None") return showModal("BŁĄD", "Jesteś bezbronny!\nWejdź do Laboratorium by odebrać darmowy miecz.", [{text: "OK", color: "#f44336"}]);
       let level = player.dungeonLevel;
@@ -393,4 +400,4 @@ const firebaseConfig = {
   }
   
   function showInventoryMsg() { showModal("EKWIPUNEK", "Panel Ekwipunku jest w trakcie budowy.", [{text: "ZAMKNIJ", color: "#777"}]); }
-    
+              
