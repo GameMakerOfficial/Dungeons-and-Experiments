@@ -6,276 +6,57 @@
     <title>Pixel RPG Tycoon</title>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     
-    <!-- BIBLIOTEKI FIREBASE (WYMAGANE DO DZIAŁANIA BAZY I RANKINGU) -->
+    <!-- BIBLIOTEKI FIREBASE -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
     <style>
-        /* RESET I USTAWIENIA POD TELEFON */
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            font-family: 'Press Start 2P', monospace;
-        }
-
-        body {
-            background-color: #000;
-            color: #fff;
-            overflow: hidden;
-        }
-
-        /* GŁÓWNY KONTENER GRY */
-        #game-container {
-            width: 100vw;
-            height: 100vh;
-            background: url('background.png') no-repeat center center;
-            background-size: cover;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* EKRAN STARTOWY */
-        #start-screen {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(20, 30, 20, 0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-
-        .panel {
-            background: #5E3A21;
-            border: 4px solid #3A2313;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.8);
-            width: 85%;
-            max-width: 320px;
-        }
-
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            margin: 8px 0;
-            background: #2C1A0E;
-            border: 2px solid #8B5A2B;
-            color: #fff;
-            text-align: center;
-            font-size: 10px;
-            outline: none;
-            border-radius: 4px;
-        }
-
-        /* PRZYCISKI Z ANIMACJĄ KLIKNIĘCIA */
-        .btn {
-            background: #4CAF50;
-            border: 4px solid #2E7D32;
-            color: white;
-            padding: 12px;
-            font-size: 9px;
-            text-transform: uppercase;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #1B5E20;
-            border-radius: 4px;
-            text-shadow: 2px 2px 0px #000;
-            transition: transform 0.1s ease, background 0.2s ease;
-        }
-
-        .btn:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 #1B5E20;
-        }
-
-        /* --- CUSTOM MODAL Z PŁYNNĄ ANIMACJĄ --- */
-        #custom-modal {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 200;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-
-        #custom-modal.active {
-            opacity: 1;
-            pointer-events: auto;
-            background: rgba(0, 0, 0, 0.85);
-        }
-
-        .modal-panel {
-            width: 90%;
-            max-width: 340px;
-            max-height: 85vh;
-            overflow-y: auto;
-            background: #5E3A21;
-            border: 4px solid #3A2313;
-            border-radius: 8px;
-            padding: 15px;
-            text-align: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.9);
-            transform: scale(0.7);
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        #custom-modal.active .modal-panel {
-            transform: scale(1);
-        }
-
-        #modal-title {
-            font-size: 12px;
-            color: #FFD700;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 0 #000;
-        }
-
-        #modal-desc {
-            font-size: 8px;
-            line-height: 1.6;
-            color: #E0E0E0;
-            margin-bottom: 15px;
-            white-space: pre-wrap;
-        }
-
-        #modal-timer {
-            font-size: 16px;
-            color: #FF9800;
-            margin: 10px 0;
-            text-shadow: 2px 2px 0 #000;
-            display: none;
-        }
-
-        #modal-buttons {
-            display: flex;
-            gap: 10px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        /* DYNAMICZNE ELEMENTY W LABORATORIUM I LEADERBOARDZIE */
-        .craft-card, .leaderboard-row {
-            background: #2C1A0E;
-            margin: 8px 0;
-            padding: 10px;
-            border-radius: 6px;
-            text-align: left;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 7px;
-            line-height: 1.4;
-        }
-
-        .craft-card.available {
-            border: 3px solid #4CAF50;
-        }
-
-        .craft-card.unavailable {
-            border: 3px solid #F44336;
-            opacity: 0.7;
-        }
-
-        .leaderboard-row {
-            border: 2px solid #8B5A2B;
-        }
-
-        /* GÓRNY PASEK STATYSTYK */
-        #top-bar {
-            background: rgba(58, 35, 19, 0.9);
-            border-bottom: 4px solid #2C1A0E;
-            padding: 10px;
-            display: none;
-            justify-content: space-between;
-            font-size: 8px;
-            line-height: 1.5;
-            z-index: 10;
-        }
-
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; font-family: 'Press Start 2P', monospace; }
+        body { background-color: #000; color: #fff; overflow: hidden; }
+        #game-container { width: 100vw; height: 100vh; background: url('background.png') no-repeat center center; background-size: cover; position: relative; display: flex; flex-direction: column; }
+        
+        #start-screen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(20, 30, 20, 0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .panel { background: #5E3A21; border: 4px solid #3A2313; border-radius: 8px; padding: 20px; text-align: center; box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.8); width: 85%; max-width: 320px; }
+        input, select { width: 100%; padding: 10px; margin: 8px 0; background: #2C1A0E; border: 2px solid #8B5A2B; color: #fff; text-align: center; font-size: 10px; outline: none; border-radius: 4px; }
+        
+        .btn { background: #4CAF50; border: 4px solid #2E7D32; color: white; padding: 12px; font-size: 9px; text-transform: uppercase; cursor: pointer; box-shadow: 0 4px 0 #1B5E20; border-radius: 4px; text-shadow: 2px 2px 0px #000; transition: transform 0.1s ease, background 0.2s ease; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 0 0 #1B5E20; }
+        
+        #custom-modal { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0); display: flex; justify-content: center; align-items: center; z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        #custom-modal.active { opacity: 1; pointer-events: auto; background: rgba(0, 0, 0, 0.85); }
+        .modal-panel { width: 90%; max-width: 340px; max-height: 85vh; overflow-y: auto; background: #5E3A21; border: 4px solid #3A2313; border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.9); transform: scale(0.7); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #custom-modal.active .modal-panel { transform: scale(1); }
+        
+        #modal-title { font-size: 12px; color: #FFD700; margin-bottom: 10px; text-shadow: 2px 2px 0 #000; }
+        #modal-desc { font-size: 8px; line-height: 1.6; color: #E0E0E0; margin-bottom: 15px; white-space: pre-wrap; }
+        #modal-timer { font-size: 16px; color: #FF9800; margin: 10px 0; text-shadow: 2px 2px 0 #000; display: none; }
+        #modal-buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        
+        .craft-card, .leaderboard-row, .inbox-item { background: #2C1A0E; margin: 8px 0; padding: 10px; border-radius: 6px; text-align: left; display: flex; justify-content: space-between; align-items: center; font-size: 7px; line-height: 1.4; border: 2px solid #8B5A2B; }
+        
+        #top-bar { background: rgba(58, 35, 19, 0.9); border-bottom: 4px solid #2C1A0E; padding: 10px; display: none; justify-content: space-between; font-size: 8px; line-height: 1.5; z-index: 10; }
         .player-info { color: #FFD700; }
         .resources { text-align: right; color: #E0E0E0; }
-
-        /* INTERAKTYWNE STREFY */
-        .hitbox {
-            position: absolute;
-            background: rgba(0, 0, 0, 0.4);
-            border: 2px dashed rgba(255, 255, 255, 0.5);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            font-size: 8px;
-            color: white;
-            text-shadow: 1px 1px 2px black;
-            border-radius: 10px;
-            transition: transform 0.2s ease, background 0.2s ease;
-        }
-
-        .hitbox:active {
-            transform: scale(0.95);
-            background: rgba(0, 0, 0, 0.6);
-        }
-
-        #zone-lab {
-            left: 5%;
-            top: 40%;
-            width: 40%;
-            height: 25%;
-        }
-
-        #zone-dungeon {
-            right: 5%;
-            top: 45%;
-            width: 40%;
-            height: 25%;
-        }
-
-        /* DOLNA NAWIGACJA */
-        #bottom-nav {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            background: #3A2313;
-            border-top: 4px solid #2C1A0E;
-            display: none;
-            justify-content: space-around;
-            padding: 10px 5px;
-            z-index: 10;
-        }
-
-        .nav-btn {
-            background: #8B5A2B;
-            border: 3px solid #5E3A21;
-            padding: 10px 3px;
-            font-size: 6px;
-            width: 19%;
-        }
+        
+        .hitbox { position: absolute; background: rgba(0, 0, 0, 0.4); border: 2px dashed rgba(255, 255, 255, 0.5); display: none; justify-content: center; align-items: center; text-align: center; font-size: 8px; color: white; text-shadow: 1px 1px 2px black; border-radius: 10px; transition: transform 0.2s ease, background 0.2s ease; }
+        .hitbox:active { transform: scale(0.95); background: rgba(0, 0, 0, 0.6); }
+        #zone-lab { left: 5%; top: 40%; width: 40%; height: 25%; }
+        #zone-dungeon { right: 5%; top: 45%; width: 40%; height: 25%; }
+        
+        #bottom-nav { position: absolute; bottom: 0; left: 0; right: 0; background: #3A2313; border-top: 4px solid #2C1A0E; display: none; justify-content: space-around; padding: 10px 5px; z-index: 10; }
+        .nav-btn { background: #8B5A2B; border: 3px solid #5E3A21; padding: 10px 3px; font-size: 6px; width: 19%; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
-    
-    <!-- EKRAN STARTOWY -->
     <div id="start-screen">
         <div class="panel">
             <h2 style="font-size: 14px; margin-bottom: 15px; color: #4CAF50;">Pixel RPG<br>Tycoon</h2>
-            
             <p style="font-size: 8px; color: #aaa; text-align: left;">NICKNAME:</p>
             <input type="text" id="nickname-input" placeholder="Player123" maxlength="30">
-            
             <p style="font-size: 8px; color: #aaa; text-align: left; margin-top: 5px;">PASSWORD:</p>
             <input type="password" id="password-input" placeholder="••••••••" maxlength="30">
-            
             <div style="display: flex; gap: 8px; margin-top: 10px;">
                 <button class="btn" style="flex: 1;" onclick="handleLogin()">LOGIN</button>
                 <button class="btn" style="flex: 1; background: #2196F3; border-color: #1976D2; box-shadow: 0 4px 0 #0D47A1;" onclick="handleRegister()">REGISTER</button>
@@ -283,7 +64,6 @@
         </div>
     </div>
 
-    <!-- WYSKAKUJĄCE OKIENKO (MODAL) Z ANIMACJĄ I TIMEREM -->
     <div id="custom-modal">
         <div class="modal-panel">
             <h3 id="modal-title">TYTUŁ</h3>
@@ -293,7 +73,6 @@
         </div>
     </div>
 
-    <!-- GÓRNY PASEK -->
     <div id="top-bar">
         <div class="player-info">
             <span id="ui-nick">Name</span><br>
@@ -307,24 +86,16 @@
         </div>
     </div>
 
-    <!-- KLIKALNE STREFY -->
-    <div id="zone-lab" class="hitbox" onclick="openLab()">
-        ENTER<br>LABORATORY
-    </div>
-    
-    <div id="zone-dungeon" class="hitbox" onclick="enterDungeon()">
-        ENTER<br>DUNGEON<br>Lv. <span id="dungeon-lvl-display">1</span>
-    </div>
+    <div id="zone-lab" class="hitbox" onclick="openLab()">ENTER<br>LABORATORY</div>
+    <div id="zone-dungeon" class="hitbox" onclick="enterDungeon()">ENTER<br>DUNGEON<br>Lv. <span id="dungeon-lvl-display">1</span></div>
 
-    <!-- DOLNA NAWIGACJA -->
     <div id="bottom-nav">
         <button class="btn nav-btn" onclick="showInventoryMsg()">EQ</button>
         <button class="btn nav-btn" onclick="openLab()">LAB</button>
         <button class="btn nav-btn" onclick="enterDungeon()">DUNGEON</button>
-        <button class="btn nav-btn" style="background: #FF9800; border-color: #E65100; box-shadow: 0 4px 0 #BF360C;" onclick="showLeaderboard()">TOP 10</button>
-        <button class="btn nav-btn" onclick="showQuestsMsg()">QUESTS</button>
+        <button class="btn nav-btn" style="background: #FF9800; border-color: #E65100; box-shadow: 0 4px 0 #BF360C;" onclick="showLeaderboard()">TOP 100</button>
+        <button class="btn nav-btn" style="background: #9C27B0; border-color: #7B1FA2; box-shadow: 0 4px 0 #4A148C;" onclick="openSocial()">SOCIAL</button>
     </div>
-
 </div>
 
 <script src="script.js"></script>
