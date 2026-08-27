@@ -1,3 +1,18 @@
+// --- KONFIGURACJA FIREBASE ---
+const firebaseConfig = {
+  apiKey: "AIzaSyDbVxlkWCzXBmsnQ5uvFpuW91Xevf2ZR54",
+  authDomain: "dungeons-and-experiments.firebaseapp.com",
+  projectId: "dungeons-and-experiments",
+  storageBucket: "dungeons-and-experiments.firebasestorage.app",
+  messagingSenderId: "104990230475",
+  appId: "1:104990230475:web:58e9dcca6be7a434ded84e",
+  measurementId: "G-YCS8LP95X0"
+};
+
+// Inicjalizacja Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 // --- BAZA DANYCH GRACZA ---
 let player = {
     nickname: "",
@@ -78,8 +93,8 @@ function closeModal() {
     modal.classList.remove("active");
 }
 
-// --- REJESTRACJA KONTA ---
-function handleRegister() {
+// --- REJESTRACJA KONTA (FIREBASE) ---
+async function handleRegister() {
     const nickInput = document.getElementById('nickname-input').value.trim();
     const passInput = document.getElementById('password-input').value.trim();
 
@@ -88,61 +103,88 @@ function handleRegister() {
         return;
     }
 
-    if (localStorage.getItem("user_" + nickInput)) {
-        showModal("BŁĄD", "Konto o tym nicku już istnieje! Kliknij LOGIN.", [{text: "OK", color: "#f44336"}]);
-        return;
+    showModal("ŁADOWANIE...", "Tworzenie konta w chmurze...", []);
+
+    try {
+        const docRef = db.collection("users").doc(nickInput);
+        const docSnap = await docRef.get();
+
+        if (docSnap.exists) {
+            showModal("BŁĄD", "Konto o tym nicku już istnieje! Kliknij LOGIN.", [{text: "OK", color: "#f44336"}]);
+            return;
+        }
+
+        let newPlayer = {
+            nickname: nickInput,
+            password: passInput,
+            rank: (nickInput === "GameMaker_Official") ? "OWNER" : "PLAYER",
+            weapon: "None",
+            dungeonLevel: 1,
+            inventory: { plank: 0, stone: 0, meat: 0, metal: 0, diamond: 0, mythril: 0 }
+        };
+
+        if (nickInput === "GameMaker_Official") {
+            newPlayer.inventory.plank += 10;
+            newPlayer.inventory.mythril += 1;
+        }
+
+        await docRef.set(newPlayer);
+        showModal("SUKCES!", "Konto utworzone pomyślnie w chmurze!\nKliknij LOGIN.", [{text: "SUPER", color: "#4CAF50"}]);
+    } catch (e) {
+        showModal("BŁĄD FIREBASE", "Nie udało się połączyć z bazą danych.", [{text: "OK", color: "#f44336"}]);
     }
-
-    let newPlayer = {
-        nickname: nickInput,
-        password: passInput,
-        rank: (nickInput === "GameMaker_Official") ? "OWNER" : "PLAYER",
-        weapon: "None",
-        dungeonLevel: 1,
-        inventory: { plank: 0, stone: 0, meat: 0, metal: 0, diamond: 0, mythril: 0 }
-    };
-
-    if (nickInput === "GameMaker_Official") {
-        newPlayer.inventory.plank += 10;
-        newPlayer.inventory.mythril += 1;
-    }
-
-    localStorage.setItem("user_" + nickInput, JSON.stringify(newPlayer));
-    showModal("SUKCES!", "Konto utworzone pomyślnie!\nTeraz kliknij LOGIN.", [{text: "SUPER", color: "#4CAF50"}]);
 }
 
-// --- LOGOWANIE DO KONTA ---
-function handleLogin() {
+// --- LOGOWANIE DO KONTA (FIREBASE) ---
+async function handleLogin() {
     const nickInput = document.getElementById('nickname-input').value.trim();
     const passInput = document.getElementById('password-input').value.trim();
 
-    const savedData = localStorage.getItem("user_" + nickInput);
-
-    if (!savedData) {
-        showModal("BŁĄD", "Nie znaleziono konta.\nKliknij REGISTER!", [{text: "OK", color: "#f44336"}]);
+    if (nickInput === "" || passInput === "") {
+        showModal("BŁĄD", "Wpisz Nick i Hasło!", [{text: "OK", color: "#f44336"}]);
         return;
     }
 
-    let userData = JSON.parse(savedData);
+    showModal("ŁADOWANIE...", "Logowanie do chmury...", []);
 
-    if (userData.password !== passInput) {
-        showModal("BŁĄD", "Błędne hasło!", [{text: "OK", color: "#f44336"}]);
-        return;
+    try {
+        const docRef = db.collection("users").doc(nickInput);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+            showModal("BŁĄD", "Konto nie istnieje! Kliknij REGISTER.", [{text: "OK", color: "#f44336"}]);
+            return;
+        }
+
+        let userData = docSnap.data();
+
+        if (userData.password !== passInput) {
+            showModal("BŁĄD", "Błędne hasło!", [{text: "OK", color: "#f44336"}]);
+            return;
+        }
+
+        player = userData;
+        updateUI();
+
+        closeModal();
+        document.getElementById('start-screen').style.display = "none";
+        document.getElementById('top-bar').style.display = "flex";
+        document.getElementById('bottom-nav').style.display = "flex";
+        document.getElementById('zone-lab').style.display = "flex";
+        document.getElementById('zone-dungeon').style.display = "flex";
+    } catch (e) {
+        showModal("BŁĄD FIREBASE", "Problem z połączeniem z bazą danych.", [{text: "OK", color: "#f44336"}]);
     }
-
-    player = userData;
-    updateUI();
-
-    document.getElementById('start-screen').style.display = "none";
-    document.getElementById('top-bar').style.display = "flex";
-    document.getElementById('bottom-nav').style.display = "flex";
-    document.getElementById('zone-lab').style.display = "flex";
-    document.getElementById('zone-dungeon').style.display = "flex";
 }
 
-function saveProgress() {
+// --- ZAPIS POSTĘPU W BAZIE ONLINE ---
+async function saveProgress() {
     if (player.nickname) {
-        localStorage.setItem("user_" + player.nickname, JSON.stringify(player));
+        try {
+            await db.collection("users").doc(player.nickname).set(player);
+        } catch (e) {
+            console.error("Błąd zapisu:", e);
+        }
     }
 }
 
@@ -160,7 +202,41 @@ function updateUI() {
     document.getElementById('res-mythril').innerText = player.inventory.mythril;
 }
 
-// --- OTWIERANIE LABORATORIUM I WYBÓR EXPERYMENTU ---
+// --- WYŚWIETLANIE TOP 10 GRACZY (RANKING ONLINE) ---
+async function showLeaderboard() {
+    showModal("ŁADOWANIE...", "Pobieranie rankingu graczy...", []);
+
+    try {
+        const querySnapshot = await db.collection("users")
+            .orderBy("dungeonLevel", "desc")
+            .limit(10)
+            .get();
+
+        let container = document.createElement("div");
+        let place = 1;
+
+        querySnapshot.forEach((doc) => {
+            let data = doc.data();
+            let row = document.createElement("div");
+            row.className = "leaderboard-row";
+
+            let medal = place === 1 ? "🥇" : place === 2 ? "🥈" : place === 3 ? "🥉" : `#${place}`;
+
+            row.innerHTML = `
+                <span>${medal} ${data.nickname}</span>
+                <span style="color: #FFD700;">Lvl ${data.dungeonLevel}</span>
+            `;
+            container.appendChild(row);
+            place++;
+        });
+
+        showModal("🏆 TOP 10 GRACZY", container, [{ text: "ZAMKNIJ", color: "#777" }]);
+    } catch (e) {
+        showModal("BŁĄD", "Nie udało się pobrać rankingu.", [{ text: "OK", color: "#f44336" }]);
+    }
+}
+
+// --- LABORATORIUM ---
 function openLab() {
     if (player.weapon === "None") {
         showModal("LABORATORY", "Witaj na pierwszej wizycie!\nTwój pierwszy eksperyment to stworzenie broni.\nKoszt: ZA DARMO\nSzansa: 100%", [
@@ -173,32 +249,11 @@ function openLab() {
             { text: "ANULUJ", color: "#777" }
         ]);
     } else {
-        // Lista możliwych przepisów
         const recipes = [
-            {
-                name: "Standard Exp.",
-                time: 10,
-                resultWeapon: "Advanced Sword",
-                cost: { plank: 2, stone: 2 }
-            },
-            {
-                name: "Iron Upgrade",
-                time: 20,
-                resultWeapon: "Iron Sword",
-                cost: { plank: 2, stone: 2, metal: 1 }
-            },
-            {
-                name: "Diamond Craft",
-                time: 30,
-                resultWeapon: "Diamond Sword",
-                cost: { plank: 2, stone: 2, diamond: 1 }
-            },
-            {
-                name: "Mythril Forge",
-                time: 60,
-                resultWeapon: "Mythril Blade",
-                cost: { plank: 2, stone: 2, mythril: 1 }
-            }
+            { name: "Standard Exp.", time: 10, resultWeapon: "Advanced Sword", cost: { plank: 2, stone: 2 } },
+            { name: "Iron Upgrade", time: 20, resultWeapon: "Iron Sword", cost: { plank: 2, stone: 2, metal: 1 } },
+            { name: "Diamond Craft", time: 30, resultWeapon: "Diamond Sword", cost: { plank: 2, stone: 2, diamond: 1 } },
+            { name: "Mythril Forge", time: 60, resultWeapon: "Mythril Blade", cost: { plank: 2, stone: 2, mythril: 1 } }
         ];
 
         let container = document.createElement("div");
@@ -248,9 +303,7 @@ function openLab() {
     }
 }
 
-// Uruchomienie wybranego eksperymentu
 function startCrafting(recipe) {
-    // Zabranie surowców
     for (let res in recipe.cost) {
         player.inventory[res] -= recipe.cost[res];
     }
@@ -269,7 +322,7 @@ function startCrafting(recipe) {
     });
 }
 
-// --- WCHODZENIE DO LOCHU Z TIMEREM 30s ---
+// --- LOCHY ---
 function enterDungeon() {
     if (player.weapon === "None") {
         showModal("BŁĄD", "Jesteś bezbronny!\nWejdź do Laboratorium by odebrać darmowy miecz.", [{text: "OK", color: "#f44336"}]);
@@ -320,10 +373,9 @@ function enterDungeon() {
     });
 }
 
-// --- DOLNE MENU ---
 function showInventoryMsg() {
     showModal("EKWIPUNEK", "Panel Ekwipunku jest w trakcie budowy.", [{text: "ZAMKNIJ", color: "#777"}]);
 }
 function showQuestsMsg() {
     showModal("MISJE", "Lista zadań i nagród będzie wkrótce dostępna.", [{text: "ZAMKNIJ", color: "#777"}]);
-}
+             }
