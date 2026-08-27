@@ -12,15 +12,15 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            user-select: none; /* Zapobiega zaznaczaniu tekstu */
-            -webkit-tap-highlight-color: transparent; /* Usuwa niebieskie podświetlenie na Androidzie */
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
             font-family: 'Press Start 2P', monospace;
         }
 
         body {
             background-color: #000;
             color: #fff;
-            overflow: hidden; /* Blokuje przewijanie ekranu */
+            overflow: hidden;
         }
 
         /* GŁÓWNY KONTENER GRY */
@@ -34,7 +34,7 @@
             flex-direction: column;
         }
 
-        /* EKRAN STARTOWY (LOGOWANIE) */
+        /* EKRAN STARTOWY (LOGOWANIE / REJESTRACJA) */
         #start-screen {
             position: absolute;
             top: 0; left: 0; right: 0; bottom: 0;
@@ -47,33 +47,37 @@
         }
 
         .panel {
-            background: #5E3A21; /* Pikselowy brąz */
+            background: #5E3A21;
             border: 4px solid #3A2313;
             border-radius: 8px;
             padding: 20px;
             text-align: center;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 5px 15px rgba(0,0,0,0.8);
+            width: 85%;
+            max-width: 320px;
         }
 
-        input[type="text"] {
+        /* USTAWIENIA DLA PÓL TEXT I PASSWORD */
+        input[type="text"], input[type="password"] {
             width: 100%;
             padding: 10px;
-            margin: 15px 0;
+            margin: 8px 0;
             background: #2C1A0E;
             border: 2px solid #8B5A2B;
             color: #fff;
             text-align: center;
-            font-size: 12px;
+            font-size: 10px;
             outline: none;
+            border-radius: 4px;
         }
 
         /* PRZYCISKI */
         .btn {
-            background: #4CAF50; /* Zgniła zieleń z tła */
+            background: #4CAF50;
             border: 4px solid #2E7D32;
             color: white;
-            padding: 15px;
-            font-size: 10px;
+            padding: 12px;
+            font-size: 9px;
             text-transform: uppercase;
             cursor: pointer;
             box-shadow: 0 4px 0 #1B5E20;
@@ -91,7 +95,7 @@
             background: rgba(58, 35, 19, 0.9);
             border-bottom: 4px solid #2C1A0E;
             padding: 10px;
-            display: none; /* Ukryte przed zalogowaniem */
+            display: none;
             justify-content: space-between;
             font-size: 8px;
             line-height: 1.5;
@@ -104,9 +108,9 @@
         /* INTERAKTYWNE STREFY NA TLE (LAB & DUNGEON) */
         .hitbox {
             position: absolute;
-            background: rgba(0, 0, 0, 0.4); /* Lekko przyciemnione, potem zmienimy na przezroczyste */
+            background: rgba(0, 0, 0, 0.4);
             border: 2px dashed rgba(255, 255, 255, 0.5);
-            display: none; /* Ukryte przed zalogowaniem */
+            display: none;
             justify-content: center;
             align-items: center;
             text-align: center;
@@ -116,7 +120,6 @@
             border-radius: 10px;
         }
 
-        /* Ustawione pod grafikę, którą wysłałeś */
         #zone-lab {
             left: 5%;
             top: 40%;
@@ -156,13 +159,21 @@
 
 <div id="game-container">
     
-    <!-- EKRAN STARTOWY -->
+    <!-- EKRAN STARTOWY (LOGOWANIE / REJESTRACJA) -->
     <div id="start-screen">
         <div class="panel">
-            <h2 style="font-size: 16px; margin-bottom: 10px; color: #4CAF50;">Pixel RPG<br>Tycoon</h2>
-            <p style="font-size: 8px; color: #aaa;">Enter your Nickname:</p>
+            <h2 style="font-size: 14px; margin-bottom: 15px; color: #4CAF50;">Pixel RPG<br>Tycoon</h2>
+            
+            <p style="font-size: 8px; color: #aaa; text-align: left;">NICKNAME:</p>
             <input type="text" id="nickname-input" placeholder="Player123" maxlength="30">
-            <button class="btn" onclick="startGame()">ENTER WORLD</button>
+            
+            <p style="font-size: 8px; color: #aaa; text-align: left; margin-top: 5px;">PASSWORD:</p>
+            <input type="password" id="password-input" placeholder="••••••••" maxlength="30">
+            
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button class="btn" style="flex: 1;" onclick="handleLogin()">LOGIN</button>
+                <button class="btn" style="flex: 1; background: #2196F3; border-color: #1976D2; box-shadow: 0 4px 0 #0D47A1;" onclick="handleRegister()">REGISTER</button>
+            </div>
         </div>
     </div>
 
