@@ -17,13 +17,20 @@ let player = {
 
 let activeTimer = null;
 
-// --- SYSTEM MODALI (Z ANIMACJĄ I OD LICZANIEM) ---
-function showModal(title, text, buttons, seconds = 0, onTimerFinish = null) {
+// --- SYSTEM MODALI ---
+function showModal(title, content, buttons, seconds = 0, onTimerFinish = null) {
     const modal = document.getElementById("custom-modal");
     const timerElem = document.getElementById("modal-timer");
+    const descElem = document.getElementById("modal-desc");
     
     document.getElementById("modal-title").innerText = title;
-    document.getElementById("modal-desc").innerText = text;
+    
+    if (typeof content === "string") {
+        descElem.innerText = content;
+    } else {
+        descElem.innerHTML = "";
+        descElem.appendChild(content);
+    }
     
     let btnContainer = document.getElementById("modal-buttons");
     btnContainer.innerHTML = "";
@@ -153,7 +160,7 @@ function updateUI() {
     document.getElementById('res-mythril').innerText = player.inventory.mythril;
 }
 
-// --- OTWIERANIE LABORATORIUM ---
+// --- OTWIERANIE LABORATORIUM I WYBÓR EXPERYMENTU ---
 function openLab() {
     if (player.weapon === "None") {
         showModal("LABORATORY", "Witaj na pierwszej wizycie!\nTwój pierwszy eksperyment to stworzenie broni.\nKoszt: ZA DARMO\nSzansa: 100%", [
@@ -166,51 +173,100 @@ function openLab() {
             { text: "ANULUJ", color: "#777" }
         ]);
     } else {
-        let costPlank = 2;
-        let costStone = 2;
-        
-        let extraMat = "Brak";
-        let duration = 10;
+        // Lista możliwych przepisów
+        const recipes = [
+            {
+                name: "Standard Exp.",
+                time: 10,
+                resultWeapon: "Advanced Sword",
+                cost: { plank: 2, stone: 2 }
+            },
+            {
+                name: "Iron Upgrade",
+                time: 20,
+                resultWeapon: "Iron Sword",
+                cost: { plank: 2, stone: 2, metal: 1 }
+            },
+            {
+                name: "Diamond Craft",
+                time: 30,
+                resultWeapon: "Diamond Sword",
+                cost: { plank: 2, stone: 2, diamond: 1 }
+            },
+            {
+                name: "Mythril Forge",
+                time: 60,
+                resultWeapon: "Mythril Blade",
+                cost: { plank: 2, stone: 2, mythril: 1 }
+            }
+        ];
 
-        if (player.inventory.mythril > 0) {
-            extraMat = "Mythril (1 min)";
-            duration = 60;
-        } else if (player.inventory.diamond > 0) {
-            extraMat = "Diamond (30s)";
-            duration = 30;
-        } else if (player.inventory.metal > 0) {
-            extraMat = "Metal (20s)";
-            duration = 20;
-        }
+        let container = document.createElement("div");
 
-        showModal("LABORATORY", `Kolejny eksperyment.\nKoszt: ${costPlank}x Plank, ${costStone}x Stone\nUżyty surowiec: ${extraMat}\nSzansa: 80%`, [
-            { text: "START", color: "#FF9800", action: () => {
-                if (player.inventory.plank >= costPlank && player.inventory.stone >= costStone) {
-                    player.inventory.plank -= costPlank;
-                    player.inventory.stone -= costStone;
-                    
-                    if (duration === 60) player.inventory.mythril--;
-                    else if (duration === 30) player.inventory.diamond--;
-                    else if (duration === 20) player.inventory.metal--;
+        recipes.forEach(rec => {
+            let hasResources = true;
+            let costString = "";
 
-                    updateUI();
-                    
-                    showModal("EKSPERYMENT IN PROGRESS...", "Laboratorium pracuje nad nowym przedmiotem...", [], duration, () => {
-                        let roll = Math.random() * 100;
-                        if (roll <= 80) {
-                            showModal("SUKCES!", "Eksperyment udany! Otrzymałeś nowe ulepszenie.", [{text: "EKSTRA", color: "#4CAF50"}]);
-                        } else {
-                            showModal("PORAŻKA!", "BUM! Eksperyment wybuchł.\nStraciłeś użyte surowce.", [{text: "TRUDNO", color: "#f44336"}]);
-                        }
-                        saveProgress();
-                    });
-                } else {
-                    showModal("BRAK SUROWCÓW", `Potrzebujesz co najmniej:\n${costPlank}x Plank\n${costStone}x Stone`, [{text: "OK", color: "#f44336"}]);
+            for (let res in rec.cost) {
+                let icon = res === "plank" ? "🪵" : res === "stone" ? "🪨" : res === "metal" ? "⚙️" : res === "diamond" ? "💎" : "🔮";
+                costString += `${rec.cost[res]}${icon} `;
+                if (player.inventory[res] < rec.cost[res]) {
+                    hasResources = false;
                 }
-            }},
-            { text: "WYJDŹ", color: "#777" }
-        ]);
+            }
+
+            let card = document.createElement("div");
+            card.className = `craft-card ${hasResources ? "available" : "unavailable"}`;
+
+            card.innerHTML = `
+                <div>
+                    <strong style="color: #FFD700;">${rec.name}</strong> (${rec.time}s)<br>
+                    <span style="color: #aaa;">Koszt: ${costString}</span>
+                </div>
+            `;
+
+            let btn = document.createElement("button");
+            btn.className = "btn";
+            btn.innerText = "START";
+            btn.style.fontSize = "7px";
+            btn.style.padding = "6px 8px";
+
+            if (!hasResources) {
+                btn.style.background = "#555";
+                btn.style.borderColor = "#333";
+                btn.style.boxShadow = "none";
+                btn.disabled = true;
+            } else {
+                btn.onclick = () => startCrafting(rec);
+            }
+
+            card.appendChild(btn);
+            container.appendChild(card);
+        });
+
+        showModal("WYBIERZ EKSPERYMENT", container, [{ text: "WYJDŹ", color: "#777" }]);
     }
+}
+
+// Uruchomienie wybranego eksperymentu
+function startCrafting(recipe) {
+    // Zabranie surowców
+    for (let res in recipe.cost) {
+        player.inventory[res] -= recipe.cost[res];
+    }
+    updateUI();
+
+    showModal("EKSPERYMENT IN PROGRESS...", `Tworzenie: ${recipe.name}\nLaboratorium pracuje...`, [], recipe.time, () => {
+        let roll = Math.random() * 100;
+        if (roll <= 80) {
+            player.weapon = recipe.resultWeapon;
+            showModal("SUKCES!", `Eksperyment udany!\nOtrzymano nową broń: ${recipe.resultWeapon}`, [{text: "EKSTRA", color: "#4CAF50"}]);
+        } else {
+            showModal("PORAŻKA!", "BUM! Eksperyment wybuchł.\nStraciłeś użyte surowce.", [{text: "TRUDNO", color: "#f44336"}]);
+        }
+        saveProgress();
+        updateUI();
+    });
 }
 
 // --- WCHODZENIE DO LOCHU Z TIMEREM 30s ---
@@ -271,4 +327,3 @@ function showInventoryMsg() {
 function showQuestsMsg() {
     showModal("MISJE", "Lista zadań i nagród będzie wkrótce dostępna.", [{text: "ZAMKNIJ", color: "#777"}]);
 }
-
