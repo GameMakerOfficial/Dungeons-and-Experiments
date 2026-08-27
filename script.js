@@ -15,13 +15,39 @@ let player = {
     }
 };
 
-// --- SYSTEM MODALI (WYSKAKUJĄCYCH OKIEN) ---
-function showModal(title, text, buttons) {
+let activeTimer = null;
+
+// --- SYSTEM MODALI (Z ANIMACJĄ I OD LICZANIEM) ---
+function showModal(title, text, buttons, seconds = 0, onTimerFinish = null) {
+    const modal = document.getElementById("custom-modal");
+    const timerElem = document.getElementById("modal-timer");
+    
     document.getElementById("modal-title").innerText = title;
     document.getElementById("modal-desc").innerText = text;
     
     let btnContainer = document.getElementById("modal-buttons");
     btnContainer.innerHTML = "";
+
+    if (activeTimer) clearInterval(activeTimer);
+
+    if (seconds > 0) {
+        timerElem.style.display = "block";
+        timerElem.innerText = seconds + "s";
+        
+        let timeLeft = seconds;
+        activeTimer = setInterval(() => {
+            timeLeft--;
+            timerElem.innerText = timeLeft + "s";
+            
+            if (timeLeft <= 0) {
+                clearInterval(activeTimer);
+                timerElem.style.display = "none";
+                if (onTimerFinish) onTimerFinish();
+            }
+        }, 1000);
+    } else {
+        timerElem.style.display = "none";
+    }
 
     buttons.forEach(btn => {
         let newBtn = document.createElement("button");
@@ -30,17 +56,19 @@ function showModal(title, text, buttons) {
         if(btn.color) newBtn.style.background = btn.color;
         
         newBtn.onclick = () => {
+            if (activeTimer) clearInterval(activeTimer);
             closeModal();
             if(btn.action) btn.action();
         };
         btnContainer.appendChild(newBtn);
     });
 
-    document.getElementById("custom-modal").style.display = "flex";
+    modal.classList.add("active");
 }
 
 function closeModal() {
-    document.getElementById("custom-modal").style.display = "none";
+    const modal = document.getElementById("custom-modal");
+    modal.classList.remove("active");
 }
 
 // --- REJESTRACJA KONTA ---
@@ -120,6 +148,9 @@ function updateUI() {
     document.getElementById('res-plank').innerText = player.inventory.plank;
     document.getElementById('res-stone').innerText = player.inventory.stone;
     document.getElementById('res-meat').innerText = player.inventory.meat;
+    document.getElementById('res-metal').innerText = player.inventory.metal;
+    document.getElementById('res-diamond').innerText = player.inventory.diamond;
+    document.getElementById('res-mythril').innerText = player.inventory.mythril;
 }
 
 // --- OTWIERANIE LABORATORIUM ---
@@ -130,7 +161,7 @@ function openLab() {
                 player.weapon = "Stone Sword";
                 saveProgress();
                 updateUI();
-                setTimeout(() => showModal("SUKCES!", "Stworzyłeś Stone Sword!\nDroga do Lochów stoi otworem.", [{text: "ZAMKNIJ", color: "#2196F3"}]), 150);
+                showModal("SUKCES!", "Stworzyłeś Stone Sword!\nDroga do Lochów stoi otworem.", [{text: "ZAMKNIJ", color: "#2196F3"}]);
             }},
             { text: "ANULUJ", color: "#777" }
         ]);
@@ -138,22 +169,43 @@ function openLab() {
         let costPlank = 2;
         let costStone = 2;
         
-        showModal("LABORATORY", `Kolejny eksperyment.\nKoszt: ${costPlank}x Plank, ${costStone}x Stone.\nSzansa powodzenia: 80%`, [
-            { text: "SPRÓBUJ", color: "#FF9800", action: () => {
+        let extraMat = "Brak";
+        let duration = 10;
+
+        if (player.inventory.mythril > 0) {
+            extraMat = "Mythril (1 min)";
+            duration = 60;
+        } else if (player.inventory.diamond > 0) {
+            extraMat = "Diamond (30s)";
+            duration = 30;
+        } else if (player.inventory.metal > 0) {
+            extraMat = "Metal (20s)";
+            duration = 20;
+        }
+
+        showModal("LABORATORY", `Kolejny eksperyment.\nKoszt: ${costPlank}x Plank, ${costStone}x Stone\nUżyty surowiec: ${extraMat}\nSzansa: 80%`, [
+            { text: "START", color: "#FF9800", action: () => {
                 if (player.inventory.plank >= costPlank && player.inventory.stone >= costStone) {
                     player.inventory.plank -= costPlank;
                     player.inventory.stone -= costStone;
+                    
+                    if (duration === 60) player.inventory.mythril--;
+                    else if (duration === 30) player.inventory.diamond--;
+                    else if (duration === 20) player.inventory.metal--;
+
                     updateUI();
                     
-                    let roll = Math.random() * 100;
-                    if (roll <= 80) {
-                        setTimeout(() => showModal("SUKCES!", "Eksperyment udany!", [{text: "EKSTRA", color: "#4CAF50"}]), 150);
-                    } else {
-                        setTimeout(() => showModal("PORAŻKA!", "BUM! Eksperyment wybuchł.\nStraciłeś użyte surowce.", [{text: "TRUDNO", color: "#f44336"}]), 150);
-                    }
-                    saveProgress();
+                    showModal("EKSPERYMENT IN PROGRESS...", "Laboratorium pracuje nad nowym przedmiotem...", [], duration, () => {
+                        let roll = Math.random() * 100;
+                        if (roll <= 80) {
+                            showModal("SUKCES!", "Eksperyment udany! Otrzymałeś nowe ulepszenie.", [{text: "EKSTRA", color: "#4CAF50"}]);
+                        } else {
+                            showModal("PORAŻKA!", "BUM! Eksperyment wybuchł.\nStraciłeś użyte surowce.", [{text: "TRUDNO", color: "#f44336"}]);
+                        }
+                        saveProgress();
+                    });
                 } else {
-                    setTimeout(() => showModal("BRAK SUROWCÓW", `Potrzebujesz:\n${costPlank}x Plank\n${costStone}x Stone`, [{text: "OK", color: "#f44336"}]), 150);
+                    showModal("BRAK SUROWCÓW", `Potrzebujesz co najmniej:\n${costPlank}x Plank\n${costStone}x Stone`, [{text: "OK", color: "#f44336"}]);
                 }
             }},
             { text: "WYJDŹ", color: "#777" }
@@ -161,7 +213,7 @@ function openLab() {
     }
 }
 
-// --- WCHODZENIE DO LOCHU ---
+// --- WCHODZENIE DO LOCHU Z TIMEREM 30s ---
 function enterDungeon() {
     if (player.weapon === "None") {
         showModal("BŁĄD", "Jesteś bezbronny!\nWejdź do Laboratorium by odebrać darmowy miecz.", [{text: "OK", color: "#f44336"}]);
@@ -174,42 +226,49 @@ function enterDungeon() {
     if (player.rank === "OWNER") winChance += 20;
     if (winChance < 0) winChance = 0;
 
-    let roll = (Math.random() * 100).toFixed(2);
-    let isWin = parseFloat(roll) <= winChance;
+    showModal("WALKA W LOCHU...", `Poziom lochów: ${level}\nTwoja szansa: ${winChance.toFixed(1)}%\n\nWalczysz z potworami...`, [], 30, () => {
+        let roll = (Math.random() * 100).toFixed(2);
+        let isWin = parseFloat(roll) <= winChance;
 
-    let title = isWin ? "🎉 ZWYCIĘSTWO!" : "💀 PORAŻKA!";
-    let message = `Loch: Poziom ${level}\nTwoja szansa: ${winChance.toFixed(2)}%\nWylosowano: ${roll}\n\n`;
+        let title = isWin ? "🎉 ZWYCIĘSTWO!" : "💀 PORAŻKA!";
+        let message = `Loch: Poziom ${level}\nSzansa wynosiła: ${winChance.toFixed(2)}%\nWylosowano: ${roll}\n\n`;
 
-    if (isWin) {
-        let dropMod = player.rank === "OWNER" ? 2.0 : 1.0; 
+        if (isWin) {
+            let dropMod = player.rank === "OWNER" ? 2.0 : 1.0; 
 
-        if (Math.random() * 100 <= (20 * dropMod)) {
-            player.inventory.plank += 1;
-            message += "+1 Plank 🪵\n";
+            if (Math.random() * 100 <= (20 * dropMod)) {
+                player.inventory.plank += 1;
+                message += "+1 Plank 🪵\n";
+            }
+            if (Math.random() * 100 <= (30 * dropMod)) {
+                player.inventory.stone += 1;
+                message += "+1 Stone 🪨\n";
+            }
+            if (Math.random() * 100 <= (10 * dropMod)) {
+                player.inventory.metal += 1;
+                message += "+1 Metal ⚙️\n";
+            }
+            
+            let meatDrop = Math.floor(Math.random() * 3) + 1;
+            player.inventory.meat += meatDrop;
+            message += `+${meatDrop} Meat 🍖\n`;
+
+            player.dungeonLevel++; 
+        } else {
+            message += "Zostałeś pokonany w walce.";
         }
-        if (Math.random() * 100 <= (30 * dropMod)) {
-            player.inventory.stone += 1;
-            message += "+1 Stone 🪨\n";
-        }
-        
-        let meatDrop = Math.floor(Math.random() * 3) + 1;
-        player.inventory.meat += meatDrop;
-        message += `+${meatDrop} Meat 🍖\n`;
 
-        player.dungeonLevel++; 
-    } else {
-        message += "Zostałeś pokonany.";
-    }
-
-    showModal(title, message, [{text: "KONTYNUUJ", color: isWin ? "#4CAF50" : "#f44336"}]);
-    saveProgress();
-    updateUI();
+        showModal(title, message, [{text: "KONTYNUUJ", color: isWin ? "#4CAF50" : "#f44336"}]);
+        saveProgress();
+        updateUI();
+    });
 }
 
-// --- ZASTĄPIENIE ALERTÓW W DOLNYM MENU ---
+// --- DOLNE MENU ---
 function showInventoryMsg() {
     showModal("EKWIPUNEK", "Panel Ekwipunku jest w trakcie budowy.", [{text: "ZAMKNIJ", color: "#777"}]);
 }
 function showQuestsMsg() {
     showModal("MISJE", "Lista zadań i nagród będzie wkrótce dostępna.", [{text: "ZAMKNIJ", color: "#777"}]);
 }
+
