@@ -1163,27 +1163,33 @@ async function handleLogin() {
 
         updateUI();
 
-
         closeModal();
 
-        // Ukrycie ekranu startowego i pokazanie elementów gry
-        document.getElementById('start-screen').style.display = 'none';
-        document.getElementById('top-bar').style.display = 'flex';
-        document.getElementById('game-nav-bar').style.display = 'flex';
-        document.getElementById('zone-lab').style.display = 'flex';
-        document.getElementById('zone-dungeon').style.display = 'flex';
+        document.getElementById("start-screen").style.display = "none";
+        document.getElementById("top-bar").style.display = "flex";
+        document.getElementById("game-nav-bar").style.display = "flex";
 
-        if (rankReward) {
-            showModal("BONUS RANGI", rankReward, [{ text: "SUPER", color: "#4CAF50" }]);
-        }
+        document.getElementById("zone-lab").style.display = "flex";
+        document.getElementById("zone-dungeon").style.display = "flex";
+
+        showModal(
+            "WITAJ!",
+            `Witaj ${player.nickname}!\n\nRanga: ${player.rank}`,
+            [
+                {
+                    text: "START",
+                    color: "#4CAF50"
+                }
+            ]
+        );
 
     } catch (e) {
 
-        console.error(e);
+        console.error("Błąd logowania:", e);
 
         showModal(
-            "BŁĄD",
-            "Nie udało się zalogować.",
+            "BŁĄD FIREBASE",
+            "Nie udało się połączyć z bazą danych.\n\nSprawdź konsolę przeglądarki.",
             [
                 {
                     text: "OK",
@@ -1193,11 +1199,3 @@ async function handleLogin() {
         );
     }
 }
-
-
-// ============================================================
-// EKSPORT DO ZAKRESU GLOBALNEGO (WINDOW)
-// ============================================================
-window.handleLogin = handleLogin;
-window.handleRegister = handleRegister;
-window.useSniperUpgrade = useSniperUpgrade;
